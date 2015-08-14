@@ -37,7 +37,7 @@ import base64
 import httplib2
 
 
-def scrape(URL,KW):
+def scrape(URL):
 	headers = {'User-Agent' : "Mozilla/5.0 (Windows NT 6.0; WOW64) AppleWebKit/534.24 (KHTML, like Gecko) Chrome/11.0.696.16 Safari/534.24"}
 
 	start = time.time()
@@ -125,7 +125,7 @@ def scrape(URL,KW):
 			starting = text[0:10]
 			if "pdf" in starting.lower():
 				text = "PDF"
-		text_count = count(text, KW)
+		text_count = count(text)
 
 	except:	
 		text = u"NA"
@@ -162,7 +162,7 @@ def analysis(basecsv,output):
 	queue = []
 	with open(output,'wt') as myfile:
 		wr = csv.writer(myfile)
-		wr.writerow(['URL','position', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body count','body word count','body character count','ex links','in links','ex links cc','in links cc'])
+		wr.writerow(['URL', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body count','body word count','body character count','ex links','in links','ex links cc','in links cc'])
 		with open(basecsv,'rU', encoding='Latin-1') as fp:
 			reader = csv.reader(fp,delimiter=",")
 			
@@ -178,23 +178,26 @@ def analysis(basecsv,output):
 
 		while len(queue)>0:
 			if white == [] or white in queue[0]:
-
 				if black not in queue[0]:
 					try:
 						content = scrape(queue[0])
+						queue = queue + content[9]
 
 
-				titletag = content[0]
-				meta = content[1]
-				H1 = content[3]
+						titletag = content[0]
+						meta = content[1]
+						H1 = content[3]
 
-				titletag_count = count(titletag, KW)
-				meta_count = count(meta, KW)
-				body_count = content[2]
-				H1_count = count(H1, KW)
+						titletag_count = count(titletag)
+						meta_count = count(meta)
+						body_count = content[2]
+						H1_count = count(H1)
 
 
-				wr.writerow([URL, position, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],body_count[2],content[4],content[5],content[6],content[7]])
+						wr.writerow([queue[0], content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],body_count[2],content[4],content[5],content[6],content[7]])
+					except:
+						wr.writerow([queue[0],"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
+
 
 
 def url_cleaner(url):
