@@ -36,16 +36,19 @@ import sys
 
 
 
-def scrape(URL):
+def scrape(URL,baseURL):
 	headers = {'User-Agent' : "Mozilla/5.0 (Windows NT 6.0; WOW64) AppleWebKit/534.24 (KHTML, like Gecko) Chrome/11.0.696.16 Safari/534.24"}
-
+	
 	start = time.time()
-	#for URL in URLlist:
+
 	end = URL[-10:]
 	if "pdf" in end.lower():
+
 		return ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA"]
 	else:
+
 		r = requests.get(URL,headers=headers,timeout=25)
+
 		stripped = r.text
 		stripped = stripped.replace('\n', '. ')
 		soup = BeautifulSoup(stripped,"html.parser")
@@ -102,7 +105,7 @@ def scrape(URL):
 			inlinks_cc += len(full_link)
 		elif 'http' not in full_link:
 
-			links_list.append(URL+full_link)
+			links_list.append(baseURL+full_link)
 			inlinks += 1
 			inlinks_cc += len(full_link)
 		else:
@@ -138,6 +141,7 @@ def scrape(URL):
 
 
 	content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list] 
+
 	return content
 
 def count(text):
@@ -173,8 +177,7 @@ def analysis(basecsv,output):
 
 		with open(basecsv,'rU', encoding='Latin-1') as fp:
 			reader = csv.reader(fp,delimiter=",")
-			
-
+		
 			for row in reader:
 				rows.append(row)
 
@@ -187,24 +190,35 @@ def analysis(basecsv,output):
 
 		while len(queue)>0:
 			targeturl = queue[0]
+
+			targeturl = targeturl.replace("www.","")
+			targeturl = targeturl.replace("//","/")
+			targeturl = targeturl.replace("/./","/")
+			targeturl = targeturl.replace("http:/","http://")
+			targeturl = targeturl.replace("https:/","https://")
+
+
 			if targeturl not in visited:
+
 				visited.append(targeturl)
 				white_dummy = 0
 				black_dummy = 0 
 				if targeturl == URL:
-					
 					white_dummy =1 
 				elif white !=[''] or targeturl == URL:
 					for x in white:
-						if x in targeturl:
-							white_dummy = 1
-							break
+						if x != '':
+
+							if x in targeturl:
+								white_dummy = 1
+								break
 				else:
 					white_dummy = 1
 
 				if black != ['']:	
 					for x in black:
 						if x in targeturl:
+
 
 							black_dummy = 1
 							break
@@ -214,7 +228,7 @@ def analysis(basecsv,output):
 				if white_dummy == 1 and black_dummy == 0:
 					#time.sleep(random.randint(0,5))
 					try:
-						content = scrape(targeturl)
+						content = scrape(targeturl,URL)
 						queue = queue + content[9]
 					
 
@@ -230,20 +244,23 @@ def analysis(basecsv,output):
 						wr.writerow([targeturl, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7]])
 					except:
 						wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
+					print(targeturl, 'success')
+
+				else:
+					pass
 			myfile.flush()
-			print(queue.pop(0))
+			queue.pop(0)
 
 
 def url_cleaner(url):
-	"""
-	this function matches and cleans a given url to aid in easier matching and dictionary construction later on
-	"""
-	if url[-1] != "/":
-		url = url + "/"
+
+	if len(url)>0:
+		if url[-1] != "/":
+			url = url + "/"
 	url_match = re.match("(https?://)?(.*?)\.(.*?)/",url)
 	if url_match != None:
 		if '.' not in url_match.group(3):
-			return url_match.group(2)+'.' +url_match.group(3)
+			return  url_match.group(2)+'.' +url_match.group(3)
 		else:
 			return url_match.group(3)
 
