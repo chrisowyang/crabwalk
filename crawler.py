@@ -1,51 +1,28 @@
-#page element scraper
-
-"""
-This program is designed to 
-	1.) scrape a list of URLs for title tags, meta description, and body text
-	2.) scan each element for fuzzy keyword matches based on inputted keywords
-	3.) output a csv with elements and their respective counts 
-
-inputs: URLs and respective keywords
-outputs: text and counts
-
-Requires (installed via pip or other package manager):
-	BeautifulSoup (scraping package)
-	FuzzyWuzzy (fuzzy matching package)
-	NLTK (natural language processor)
-
-Should be standard with Python 3:
-	requests
-	csv
-	os
-
-Extensions:
-	textstat readability analysis 
-"""
-
 from bs4 import BeautifulSoup
 import requests
 import csv
-
 import nltk.data
 from nltk.tokenize import RegexpTokenizer
 import time
 import re
 import sys
-#import random
-
-
-
 def scrape(URL,baseURL):
+	"""
+	scrapes urls via BeautifulSoup recording title tags and h1 headers in addition to 
+	"""
 	headers = {'User-Agent' : "Mozilla/5.0 (Windows NT 6.0; WOW64) AppleWebKit/534.24 (KHTML, like Gecko) Chrome/11.0.696.16 Safari/534.24"}
 	
 	start = time.time()
 
 	end = URL[-10:]
+
 	if "pdf" in end.lower():
 
 		return ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA"]
 	else:
+		if "http" not in URL:
+			URL = "http://" + URL
+
 
 		r = requests.get(URL,headers=headers,timeout=25)
 
@@ -87,7 +64,6 @@ def scrape(URL,baseURL):
 		H1 = u"NA"
 
 	#links
-
 	bareresult = url_cleaner(URL)
 
 	links_list = []
@@ -104,8 +80,10 @@ def scrape(URL,baseURL):
 			inlinks += 1
 			inlinks_cc += len(full_link)
 		elif 'http' not in full_link:
-
-			links_list.append(baseURL+full_link)
+			if full_link[0]=='/':
+				links_list.append(baseURL+full_link)
+			else:
+				links_list.append(URL+full_link)
 			inlinks += 1
 			inlinks_cc += len(full_link)
 		else:
@@ -182,6 +160,8 @@ def analysis(basecsv,output):
 				rows.append(row)
 
 			URL = rows[0][1]
+			URL = URL.replace("http://","")
+			URL = URL.replace("https://","")
 			black = [x for x in rows[1][1:]]
 			white = [x for x in rows[2][1:]]
 			queue.append(URL)
@@ -189,13 +169,17 @@ def analysis(basecsv,output):
 
 
 		while len(queue)>0:
+			
 			targeturl = queue[0]
 
+
 			targeturl = targeturl.replace("www.","")
-			targeturl = targeturl.replace("//","/")
+			
 			targeturl = targeturl.replace("/./","/")
-			targeturl = targeturl.replace("http:/","http://")
-			targeturl = targeturl.replace("https:/","https://")
+			targeturl = targeturl.replace("http://","")
+			targeturl = targeturl.replace("https://","")
+			targeturl = targeturl.replace("//","/")
+
 
 
 			if targeturl not in visited:
@@ -203,10 +187,15 @@ def analysis(basecsv,output):
 				visited.append(targeturl)
 				white_dummy = 0
 				black_dummy = 0 
+
 				if targeturl == URL:
 					white_dummy =1 
 				elif white !=[''] or targeturl == URL:
 					for x in white:
+
+						x = x.replace("https://","")
+						x = x.replace("http://","")
+					
 						if x != '':
 
 							if x in targeturl:
@@ -217,11 +206,12 @@ def analysis(basecsv,output):
 
 				if black != ['']:	
 					for x in black:
-						if x in targeturl:
-
-
-							black_dummy = 1
-							break
+						x = x.replace("https://","")
+						x = x.replace("http://","")
+						if x != '':
+							if x in targeturl:
+								black_dummy = 1
+								break
 				else:
 					black_dummy = 0
 
