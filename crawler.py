@@ -177,12 +177,11 @@ def analysis(basecsv,output):
 
 
 		while len(queue)>0:
-			if white == [] or :
-			if black in queue[0]:
-				try:
-					content = scrape(queue[0])
-				except:
-					content = ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA"]
+			if white == [] or white in queue[0]:
+
+				if black not in queue[0]:
+					try:
+						content = scrape(queue[0])
 
 
 				titletag = content[0]
@@ -195,7 +194,7 @@ def analysis(basecsv,output):
 				H1_count = count(H1, KW)
 
 
-				wr.writerow([KW,URL, position, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],body_count[2],content[4],content[5],content[6],content[7]])
+				wr.writerow([URL, position, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],body_count[2],content[4],content[5],content[6],content[7]])
 
 
 def url_cleaner(url):
