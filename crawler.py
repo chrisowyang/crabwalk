@@ -26,15 +26,14 @@ Extensions:
 from bs4 import BeautifulSoup
 import requests
 import csv
-from fuzzywuzzy import fuzz
+
 import nltk.data
 from nltk.tokenize import RegexpTokenizer
-#from textstat.textstat import textstat
 import time
 import re
-import os
-import base64
-import httplib2
+import sys
+#import random
+
 
 
 def scrape(URL):
@@ -85,23 +84,30 @@ def scrape(URL):
 		H1 = u"NA"
 
 	#links
+
 	bareresult = url_cleaner(URL)
+
 	links_list = []
 	exlinks = 0
 	inlinks = 0
 	exlinks_cc = 0
 	inlinks_cc = 0
 
-	for link in soup.find_all(href=re.compile("https?://")):
+	for link in soup.find_all('a', href=True):
 		full_link=link.get('href')
 		clean_link = url_cleaner(link.get('href'))
 		if clean_link == bareresult:
 			links_list.append(clean_link)
-			exlinks += 1
-			exlinks_cc += len(full_link)
-		else:
 			inlinks += 1
-			inlinks_cc+= len(full_link)
+			inlinks_cc += len(full_link)
+		elif 'http' not in full_link:
+
+			links_list.append(URL+full_link)
+			inlinks += 1
+			inlinks_cc += len(full_link)
+		else:
+			exlinks += 1
+			exlinks_cc+= len(full_link)
 
 
 	#BODY
@@ -129,7 +135,7 @@ def scrape(URL):
 
 	except:	
 		text = u"NA"
-	parse_time = time.time() -start
+
 
 	content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list] 
 	return content
@@ -160,9 +166,11 @@ def count(text):
 def analysis(basecsv,output):
 	rows = []
 	queue = []
+	visited = []
 	with open(output,'wt') as myfile:
 		wr = csv.writer(myfile)
-		wr.writerow(['URL', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body count','body word count','body character count','ex links','in links','ex links cc','in links cc'])
+		wr.writerow(['URL', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body word count','body character count','ex links','in links','ex links cc','in links cc'])
+
 		with open(basecsv,'rU', encoding='Latin-1') as fp:
 			reader = csv.reader(fp,delimiter=",")
 			
@@ -170,18 +178,45 @@ def analysis(basecsv,output):
 			for row in reader:
 				rows.append(row)
 
-			URL = rows[0]
-			black = [x for x in rows[1]]
-			white = [x for x in rows[2]]
+			URL = rows[0][1]
+			black = [x for x in rows[1][1:]]
+			white = [x for x in rows[2][1:]]
 			queue.append(URL)
 
 
+
 		while len(queue)>0:
-			if white == [] or white in queue[0]:
-				if black not in queue[0]:
+			targeturl = queue[0]
+			if targeturl not in visited:
+				visited.append(targeturl)
+				white_dummy = 0
+				black_dummy = 0 
+				if targeturl == URL:
+					
+					white_dummy =1 
+				elif white !=[''] or targeturl == URL:
+					for x in white:
+						if x in targeturl:
+							white_dummy = 1
+							break
+				else:
+					white_dummy = 1
+
+				if black != ['']:	
+					for x in black:
+						if x in targeturl:
+
+							black_dummy = 1
+							break
+				else:
+					black_dummy = 0
+
+				if white_dummy == 1 and black_dummy == 0:
+					#time.sleep(random.randint(0,5))
 					try:
-						content = scrape(queue[0])
+						content = scrape(targeturl)
 						queue = queue + content[9]
+					
 
 
 						titletag = content[0]
@@ -192,18 +227,19 @@ def analysis(basecsv,output):
 						meta_count = count(meta)
 						body_count = content[2]
 						H1_count = count(H1)
-
-
-						wr.writerow([queue[0], content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],body_count[2],content[4],content[5],content[6],content[7]])
+						wr.writerow([targeturl, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7]])
 					except:
-						wr.writerow([queue[0],"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
-
+						wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
+			myfile.flush()
+			print(queue.pop(0))
 
 
 def url_cleaner(url):
 	"""
 	this function matches and cleans a given url to aid in easier matching and dictionary construction later on
 	"""
+	if url[-1] != "/":
+		url = url + "/"
 	url_match = re.match("(https?://)?(.*?)\.(.*?)/",url)
 	if url_match != None:
 		if '.' not in url_match.group(3):
@@ -214,5 +250,5 @@ def url_cleaner(url):
 
 
 if __name__ == '__main__':
-	activate()
+	analysis(sys.argv[1], sys.argv[2])
 
