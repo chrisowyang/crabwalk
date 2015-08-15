@@ -82,6 +82,8 @@ def scrape(URL,baseURL):
 		elif 'http' not in full_link:
 			if full_link[0]=='/':
 				links_list.append(baseURL+full_link)
+			if full_link[0]=='./':
+				links_list.append(URL+full_link[1:])
 			else:
 				links_list.append(URL+full_link)
 			inlinks += 1
@@ -175,7 +177,7 @@ def analysis(basecsv,output):
 
 			targeturl = targeturl.replace("www.","")
 			
-			targeturl = targeturl.replace("/./","/")
+
 			targeturl = targeturl.replace("http://","")
 			targeturl = targeturl.replace("https://","")
 			targeturl = targeturl.replace("//","/")
