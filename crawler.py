@@ -6,7 +6,40 @@ from nltk.tokenize import RegexpTokenizer
 import time
 import re
 import sys
-def scrape(URL,baseURL):
+def url_cleaner(url):
+
+	if len(url)>0:
+		if url[-1] != "/":
+			url = url + "/"
+	url_match = re.match("(https?://)?(.*?)\.(.*?)/",url)
+	if url_match != None:
+		if '.' not in url_match.group(3):
+			return  url_match.group(2)+'.' +url_match.group(3)
+		else:
+			return url_match.group(3)
+
+def process_links(full_link,targetURL,baseURL):
+	clean_link = url_cleaner(full_link)
+	domain = url_cleaner(baseURL)
+	if '#' in full_link or len(full_link)<2:
+		return 'ERROR'
+
+	if clean_link == domain:
+		return clean_link
+	elif 'http' not in full_link:
+		if full_link[0]=='/':
+			return baseURL+full_link
+		elif full_link[0:2]=='./':
+			return targetURL+full_link[2:]
+		else:
+			return targetURL+full_link
+
+	else:
+		return full_link
+
+
+
+def scrape(targetURL,baseURL):
 	"""
 	scrapes urls via BeautifulSoup recording title tags and h1 headers in addition to 
 	"""
@@ -14,17 +47,19 @@ def scrape(URL,baseURL):
 	
 	start = time.time()
 
-	end = URL[-10:]
+	end = targetURL[-10:]
 
 	if "pdf" in end.lower():
 
 		return ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA"]
 	else:
-		if "http" not in URL:
-			URL = "http://" + URL
+		if "http" not in targetURL:
+			targetURL = "http://" + targetURL
+			print(targetURL)
 
 
-		r = requests.get(URL,headers=headers,timeout=25)
+		r = requests.get(targetURL,headers=headers,timeout=25)
+
 
 		stripped = r.text
 		stripped = stripped.replace('\n', '. ')
@@ -64,7 +99,7 @@ def scrape(URL,baseURL):
 		H1 = u"NA"
 
 	#links
-	bareresult = url_cleaner(URL)
+
 
 	links_list = []
 	exlinks = 0
@@ -74,18 +109,11 @@ def scrape(URL,baseURL):
 
 	for link in soup.find_all('a', href=True):
 		full_link=link.get('href')
-		clean_link = url_cleaner(link.get('href'))
-		if clean_link == bareresult:
-			links_list.append(clean_link)
-			inlinks += 1
-			inlinks_cc += len(full_link)
-		elif 'http' not in full_link:
-			if full_link[0]=='/':
-				links_list.append(baseURL+full_link)
-			if full_link[0]=='./':
-				links_list.append(URL+full_link[1:])
-			else:
-				links_list.append(URL+full_link)
+		corrected_link = process_links(full_link, targetURL, baseURL)
+		if corrected_link == 'ERROR':
+			pass
+		elif url_cleaner(corrected_link) == url_cleaner(baseURL):
+			links_list.append(corrected_link)
 			inlinks += 1
 			inlinks_cc += len(full_link)
 		else:
@@ -97,7 +125,7 @@ def scrape(URL,baseURL):
 	
 	try:
 		
-		end = URL[-10:]
+		end = targetURL[-10:]
 		if "pdf" in end.lower():
 			text = "PDF"
 		else:
@@ -161,12 +189,13 @@ def analysis(basecsv,output):
 			for row in reader:
 				rows.append(row)
 
-			URL = rows[0][1]
-			URL = URL.replace("http://","")
-			URL = URL.replace("https://","")
+			baseURL = rows[0][1]
+			baseURL = baseURL.replace("http://","")
+			baseURL = baseURL.replace("https://","")
+			baseURL = baseURL.replace("www.","")
 			black = [x for x in rows[1][1:]]
 			white = [x for x in rows[2][1:]]
-			queue.append(URL)
+			queue.append(baseURL)
 
 
 
@@ -190,9 +219,9 @@ def analysis(basecsv,output):
 				white_dummy = 0
 				black_dummy = 0 
 
-				if targeturl == URL:
+				if targeturl == baseURL:
 					white_dummy =1 
-				elif white !=[''] or targeturl == URL:
+				elif white !=[''] or targeturl == baseURL:
 					for x in white:
 
 						x = x.replace("https://","")
@@ -220,7 +249,7 @@ def analysis(basecsv,output):
 				if white_dummy == 1 and black_dummy == 0:
 					#time.sleep(random.randint(0,5))
 					try:
-						content = scrape(targeturl,URL)
+						content = scrape(targeturl,baseURL)
 						queue = queue + content[9]
 					
 
@@ -236,7 +265,7 @@ def analysis(basecsv,output):
 						wr.writerow([targeturl, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7]])
 					except:
 						wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
-					print(targeturl, 'success')
+					#print(targeturl, 'success')
 
 				else:
 					pass
@@ -244,17 +273,6 @@ def analysis(basecsv,output):
 			queue.pop(0)
 
 
-def url_cleaner(url):
-
-	if len(url)>0:
-		if url[-1] != "/":
-			url = url + "/"
-	url_match = re.match("(https?://)?(.*?)\.(.*?)/",url)
-	if url_match != None:
-		if '.' not in url_match.group(3):
-			return  url_match.group(2)+'.' +url_match.group(3)
-		else:
-			return url_match.group(3)
 
 
 
