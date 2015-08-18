@@ -6,6 +6,7 @@ from nltk.tokenize import RegexpTokenizer
 import time
 import re
 import sys
+
 def normalize(targeturl):
     targeturl = targeturl.replace("www.","")
     targeturl = targeturl.replace("http://","")
@@ -34,7 +35,8 @@ def last_directory(url):
     for x in range(len(reverse)):
         if url[x] == "/":
             stop = x
-    return url[:stop]+"/"
+            return url[:stop]+"/"
+    return '/'
 			
 
 def process_links(full_link,targetURL,baseURL):
@@ -191,7 +193,7 @@ def scrape(targetURL,baseURL):
         except:    
             text = u"NA"
     
-    
+
         content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list]
  
 
