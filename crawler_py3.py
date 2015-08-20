@@ -77,22 +77,22 @@ def scrape(targetURL,baseURL):
 
     if "pdf" in end.lower():
 
-        return ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA"]
+        return ["NA","NA",[0,1,2],"NA","NA","NA","NA","NA","NA","NA","NA"]
     
     else:
         if "http" not in targetURL:
             targetURL = "http://" + targetURL
                 
        
-        r = requests.get(targetURL,headers=headers,timeout=25)
+        r = requests.get(targetURL,headers=headers,timeout=15)
 
         stripped = r.text
         stripped = stripped.replace('\n', '. ')
     
         soup = BeautifulSoup(stripped,"html.parser")
 
-        
-        load_time = start - time.time()
+        end_time = time.time()
+        load_time = end_time - start
         #TITLE TAGS
         start = time.time()
         try:
@@ -125,7 +125,8 @@ def scrape(targetURL,baseURL):
                 H1 = u"NA"
         except:
             H1 = u"NA"
-    
+
+
         #links
     
     
@@ -135,7 +136,7 @@ def scrape(targetURL,baseURL):
         exlinks_cc = 0
         inlinks_cc = 0
         
-        #print (len(soup.find_all('a', href=True)))
+
 
         soup_links = soup.find_all('a', href=True)
         
@@ -192,9 +193,15 @@ def scrape(targetURL,baseURL):
     
         except:    
             text = u"NA"
+
+        #no follow
+        if 'nofollow' in stripped or 'NOFOLLOW' in stripped or 'NoFollow' in stripped:
+            nofollow = 1
+        else:
+            nofollow = 0
     
 
-        content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list]
+        content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list, end_time, nofollow]
  
 
         return content
@@ -221,14 +228,14 @@ def count(text):
     return [wordcount,character_count]
 
 
-
 def analysis(basecsv,output):
     rows = []
     queue = []
     visited = []
+
     with open(output,'wt') as myfile:
         wr = csv.writer(myfile)
-        wr.writerow(['URL', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body word count','body character count','ex links','in links','ex links cc','in links cc'])
+        wr.writerow(['URL','time stamp', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body word count','body character count','ex links','in links','ex links cc','in links cc','no follow'])
 
         with open(basecsv,'rU') as fp:
             reader = csv.reader(fp,delimiter=",")
@@ -246,8 +253,10 @@ def analysis(basecsv,output):
 
                 
                 #queue of links to visit
+            errorflagged = 0
             while len(queue)>0:
-                targeturl = queue.pop(0)
+                if errorflagged == 0:
+                    targeturl = queue.pop(0)
                 targeturl = normalize(targeturl)
 
                 if targeturl not in visited: #check if link has been visited
@@ -281,9 +290,7 @@ def analysis(basecsv,output):
                                     if x in targeturl:
                                         black_dummy = 1 #failed black test
                                         break
-                    print(targeturl)
-                    print ("white", white_dummy)
-                    print ("black", black_dummy)
+
                     
                     if white_dummy == 1 and black_dummy == 0:
                         try:
@@ -300,28 +307,29 @@ def analysis(basecsv,output):
                             body_count = content[2]
                             H1_count = count(H1)
                                       
-                            wr.writerow([targeturl, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7]])
-                            print(targeturl, 'success')
-                            print("next one is "  + queue[0])    
+                            wr.writerow([targeturl,content[10], content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7],content[11]])
+                            
+ 
                         except:
+                            errorflagged+= 1
+                            print('error try #',errorflagged)
+                            if errorflagged>2:
+                                errorflagged = 0                                                                
+                                wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
                                       
-                            wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
-                                  
                 
                     else:
                         pass
+                    if len(visited)%5==0:
+                        print('queue length:', len(queue))
+                        print('visited:',len(visited))
+                        print('percent complete',str(100-(100*len(queue)/(len(queue)+len(visited))))+"%")
+                        print('---')
             print ("Done")  
-            print (visited)                     
+                  
             fp.close()#close basecsv                       
         myfile.flush() #close output files
         myfile.close()
-
-			
-
-
-
-
-
 
 if __name__ == '__main__':
 	analysis(sys.argv[1], sys.argv[2])
