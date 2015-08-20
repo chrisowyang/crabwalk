@@ -253,10 +253,10 @@ def analysis(basecsv,output):
 
                 
                 #queue of links to visit
-            errorflagged = 0
+
             while len(queue)>0:
-                if errorflagged == 0:
-                    targeturl = queue.pop(0)
+                
+                targeturl = queue.pop(0)
                 targeturl = normalize(targeturl)
 
                 if targeturl not in visited: #check if link has been visited
@@ -311,12 +311,7 @@ def analysis(basecsv,output):
                             
  
                         except:
-                            errorflagged+= 1
-                            print('error try #',errorflagged)
-                            if errorflagged>2:
-                                errorflagged = 0                                                                
-                                wr.writerow([targeturl,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"])
-                                      
+                            print('ERROR',targeturl)
                 
                     else:
                         pass
