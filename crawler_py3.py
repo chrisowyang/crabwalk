@@ -335,9 +335,8 @@ def analysis(basecsv,output):
                         print('error log: ',len(error))
                         print('---')
             
-            print error.keys()
        
-            print ("Done")  
+            print("Done")  
             print('queue length:', len(d))
             print('visited:',len(visited))
             print('percent complete',str(100-(100*len(d)/(len(d)+len(visited))))+"%")
