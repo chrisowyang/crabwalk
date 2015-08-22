@@ -6,12 +6,13 @@ from nltk.tokenize import RegexpTokenizer
 import time
 import re
 import sys
+import collections
 
 def normalize(targeturl):
     targeturl = targeturl.replace("www.","")
     targeturl = targeturl.replace("http://","")
     targeturl = targeturl.replace("https://","")
-    #targeturl = targeturl.replace("//","/")
+    targeturl = targeturl.replace("//","/")
     return targeturl
 
 def url_cleaner(url):
@@ -193,13 +194,8 @@ def scrape(targetURL,baseURL):
     
         except:    
             text = u"NA"
+        nofollow = 0
 
-        #no follow
-        if 'nofollow' in stripped or 'NOFOLLOW' in stripped or 'NoFollow' in stripped:
-            nofollow = 1
-        else:
-            nofollow = 0
-    
 
         content = [title, meta, text_count, H1, exlinks, inlinks, exlinks_cc, inlinks_cc,load_time, links_list, end_time, nofollow]
  
@@ -229,41 +225,44 @@ def count(text):
 
 
 def analysis(basecsv,output):
-    rows = []
-    queue = []
-    visited = []
-
+    #rows = []
+    #queue = []
+    visited = set()
+    error = {}
+    d = collections.deque()
+    #v_append = visited.append
+    v_add = visited.add
     with open(output,'wt') as myfile:
         wr = csv.writer(myfile)
         wr.writerow(['URL','time stamp', 'load time', 'title tag text', 'meta tag text', 'h1 text','title tag count', 'meta description count','h1 count', 'body word count','body character count','ex links','in links','ex links cc','in links cc','no follow'])
-
+        
         with open(basecsv,'rU') as fp:
             reader = csv.reader(fp,delimiter=",")
-        
-            for row in reader:
-                rows.append(row)
+            
+            rows = [row for row in reader]
+            #for row in reader:
+            #    rows.append(row)
 
             baseURL = rows[0][1]
             baseURL = normalize(baseURL)
             
-            black = [x for x in rows[1][1:]]
-            white = [x for x in rows[2][1:]]
+            black = [x for x in rows[1][1:] if x!='']
+            white = [x for x in rows[2][1:] if x!='']
             
-            queue.append(baseURL)
-
+            #queue.append(baseURL)#queue of links to visit
+            d.append(baseURL)
+            
+            extend = d.extend
+            while len(d)>0:
                 
-                #queue of links to visit
-
-            while len(queue)>0:
-                
-                targeturl = queue.pop(0)
+                #targeturl = queue.pop(0)
+                targeturl = d.pop()
                 targeturl = normalize(targeturl)
 
                 if targeturl not in visited: #check if link has been visited
                 
-                    visited.append(targeturl)#add to visited list
-                                
-                            #Does targeturl pass test parameters, white and black
+                    start_time = time.time()            
+                    #Does targeturl pass test parameters, white and black
                     white_dummy = 0 
                     black_dummy = 0 
                 
@@ -271,7 +270,7 @@ def analysis(basecsv,output):
                         white_dummy = 1 #passed white test
                         black_dummy = 0 #passed black test
                     else:
-                        if white==['']: # white is empty
+                        if not white: # white is empty
                             white_dummy = 1
                         else:  #make sure you don't have empty entries
                             for x in white:
@@ -281,7 +280,7 @@ def analysis(basecsv,output):
                                         white_dummy = 1
                                         break #breaks out of for loop
                 
-                        if black==['']: #black is empty
+                        if not black: #black is empty
                             black_dummy = 0; #passed black text
                         else:
                             for x in black:
@@ -291,13 +290,14 @@ def analysis(basecsv,output):
                                         black_dummy = 1 #failed black test
                                         break
 
-                    
+                    #check if paasses tests
                     if white_dummy == 1 and black_dummy == 0:
                         try:
                             content = scrape(targeturl,baseURL) #both normalized
                              
-                            queue = queue + content[9]
-                            
+                            #queue = queue + content[9]
+                            extend(content[9])
+                            #print d
                             titletag = content[0]
                             meta = content[1]
                             H1 = content[3]
@@ -306,22 +306,43 @@ def analysis(basecsv,output):
                             meta_count = count(meta)
                             body_count = content[2]
                             H1_count = count(H1)
-                                      
-                            wr.writerow([targeturl,content[10], content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7],content[11]])
+                            end_time = time.time()          
                             
+                            wr.writerow([targeturl,end_time-start_time, content[8], titletag, meta, H1, titletag_count[0], meta_count[0],H1_count[0],body_count[0],body_count[1],content[4],content[5],content[6],content[7],content[11]])
+                            v_add(targeturl)#add to visited list
  
                         except:
-                            print('ERROR',targeturl)
+                            if targeturl not in error.keys():
+                                error[targeturl] = 1
+                            else:
+                                if error[targeturl]<3:
+                                    error[targeturl]+=1
+                                    #queue.append(targeturl)
+                                    d.append(targeturl)
+                                else:
+                                    print('ERROR',targeturl)
+                                    v_add(targeturl)#add to visited list
+                                    wr.writerow([targeturl,"NA","NA", "NA", "NA", "NA", "NA", "NA","NA","NA","NA","NA","NA","NA","NA","NA"])
                 
                     else:
-                        pass
+                        v_add(targeturl)#add to visited list
+                        
+                        
                     if len(visited)%5==0:
-                        print('queue length:', len(queue))
+                        print('queue length:', len(d))
                         print('visited:',len(visited))
-                        print('percent complete',str(100-(100*len(queue)/(len(queue)+len(visited))))+"%")
+                        print('percent complete',str(100-(100*len(d)/(len(d)+len(visited))))+"%")
+                        print('error log: ',len(error))
                         print('---')
+            
+            print error.keys()
+       
             print ("Done")  
-                  
+            print('queue length:', len(d))
+            print('visited:',len(visited))
+            print('percent complete',str(100-(100*len(d)/(len(d)+len(visited))))+"%")
+            print('error log: ',len(error))
+            print('---')                       
             fp.close()#close basecsv                       
         myfile.flush() #close output files
         myfile.close()
